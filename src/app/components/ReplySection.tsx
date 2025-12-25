@@ -1,4 +1,4 @@
-// import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
@@ -8,7 +8,6 @@ import { MessageCircle, Clock, Check, ArrowUp } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "sonner";
 import type { JSX } from "react";
-import { useState } from "react";
 
 /* ---------------- TYPES ---------------- */
 
@@ -16,9 +15,8 @@ export interface Reply {
   id: string;
   content: string;
   upvotes: number;
-  hasUpvoted?: boolean;
   isAccepted?: boolean;
-  timeAgo?: string;
+  createdAt?: any; // Firestore Timestamp
   author: {
     name: string;
     avatar?: string;
@@ -28,14 +26,32 @@ export interface Reply {
 }
 
 interface ReplySectionProps {
-  replies?: Reply[]; // ✅ optional & safe
+  replies?: Reply[];
   onReplySubmit: (content: string) => Promise<void>;
+}
+
+/* ---------------- UTILS ---------------- */
+
+function timeAgo(timestamp?: any): string {
+  if (!timestamp?.seconds) return "just now";
+
+  const diff = Date.now() - timestamp.seconds * 1000;
+  const mins = Math.floor(diff / 60000);
+
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hr ago`;
+
+  const days = Math.floor(hours / 24);
+  return `${days} day${days > 1 ? "s" : ""} ago`;
 }
 
 /* ---------------- COMPONENT ---------------- */
 
 export function ReplySection({
-  replies = [], // ✅ default empty array
+  replies = [],
   onReplySubmit,
 }: ReplySectionProps): JSX.Element {
   const { user } = useAuth();
@@ -43,12 +59,8 @@ export function ReplySection({
   const [replyContent, setReplyContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  /* ⬆️ UI-only upvote */
-  const handleUpvote = (replyId: string) => {
-    // purely visual – no backend
-  };
+  /* ---------------- SUBMIT ---------------- */
 
-  /* 📤 Submit reply */
   const handleSubmit = async () => {
     if (!user) {
       toast.error("Please login to post an answer");
@@ -69,7 +81,7 @@ export function ReplySection({
       console.error(err);
       toast.error("Failed to post reply");
     } finally {
-      setIsSubmitting(false); // ✅ NEVER gets stuck
+      setIsSubmitting(false);
     }
   };
 
@@ -85,7 +97,7 @@ export function ReplySection({
         </h3>
       </div>
 
-      {/* Replies List */}
+      {/* Replies */}
       <AnimatePresence>
         {replies.map((reply, index) => (
           <motion.div
@@ -93,20 +105,17 @@ export function ReplySection({
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ delay: index * 0.05 }}
+            transition={{ delay: index * 0.04 }}
             className={`rounded-xl border p-5 bg-white ${
               reply.isAccepted ? "border-green-400 bg-green-50/40" : ""
             }`}
           >
             <div className="flex gap-4">
-              {/* Upvote */}
+              {/* Upvotes (display only) */}
               <div className="flex flex-col items-center">
-                <button
-                  onClick={() => handleUpvote(reply.id)}
-                  className="w-9 h-9 rounded-lg bg-gray-100 text-gray-400"
-                >
-                  <ArrowUp className="size-4" />
-                </button>
+                <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center">
+                  <ArrowUp className="size-4 text-gray-400" />
+                </div>
                 <span className="text-sm font-bold">{reply.upvotes}</span>
               </div>
 
@@ -125,7 +134,7 @@ export function ReplySection({
                       <p className="font-medium">{reply.author.name}</p>
                       <span className="text-xs text-gray-500 flex items-center gap-1">
                         <Clock className="size-3" />
-                        {reply.timeAgo ?? "just now"}
+                        {timeAgo(reply.createdAt)}
                       </span>
                     </div>
                   </div>
@@ -165,10 +174,7 @@ export function ReplySection({
             />
 
             <div className="flex justify-end mt-3">
-              <Button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-              >
+              <Button onClick={handleSubmit} disabled={isSubmitting}>
                 {isSubmitting ? "Posting…" : "Post Reply"}
               </Button>
             </div>

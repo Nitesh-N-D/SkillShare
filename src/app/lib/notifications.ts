@@ -15,7 +15,9 @@ interface CreateNotificationInput {
 
 /* ---------------- CREATE NOTIFICATION ---------------- */
 
-export async function createNotification(data: CreateNotificationInput) {
+export async function createNotification(
+  data: CreateNotificationInput
+) {
   if (!data.userId) return;
 
   return addDoc(notificationsRef, {
